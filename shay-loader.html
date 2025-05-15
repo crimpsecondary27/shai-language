@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>حمل لغة شاي</title>
+  <script src="shay-runtime.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    #shay-file { margin: 10px 0; padding: 5px; }
+    button { padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h1>حمل لغة شاي</h1>
+  <label for="shay-file">اختر ملف شاي:</label>
+  <input type="file" id="shay-file" accept=".shai" aria-label="اختر ملف شاي">
+  <button onclick="loadShay()" aria-label="نفذ ملف شاي المحدد">نفذ ملف شاي</button>
+  <div id="output"></div>
+
+  <script>
+    function loadShay() {
+      const fileInput = document.getElementById('shay-file');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('output').innerHTML = '';
+        const runtime = new ShayRuntime();
+        runtime.execute(e.target.result);
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
