@@ -1,23 +1,39 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, filedialog
 import re
+import os
 
 class ShaiIDE:
     def __init__(self, root):
         self.root = root
-        self.root.title("Shai-lang IDE - VS Code Style")
+        self.root.title("بيئة تطوير شاي")
         
         # VS Code-like dark theme
         self.root.configure(bg="#1e1e1e")
         
         # Configure window
-        self.root.geometry("1000x700")
+        self.root.geometry("1200x800")
         
         # Create menu
         self.create_menu()
         
+        # Main paned window
+        self.main_pane = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
+        self.main_pane.pack(fill=tk.BOTH, expand=True)
+        
+        # Sidebar (Explorer)
+        self.sidebar = ttk.Frame(self.main_pane, width=200)
+        self.main_pane.add(self.sidebar)
+        
+        # Create file explorer
+        self.create_explorer()
+        
+        # Editor area
+        self.editor_area = ttk.Frame(self.main_pane)
+        self.main_pane.add(self.editor_area)
+        
         # Create notebook for tabs
-        self.notebook = ttk.Notebook(self.root)
+        self.notebook = ttk.Notebook(self.editor_area)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         
         # Add editor tab
@@ -31,17 +47,46 @@ class ShaiIDE:
         self.autocomplete_words = ["func", "if", "else", "while", "for", "return"]
         self.setup_autocomplete()
         
+        # Create bottom panel (terminal + REPL)
+        self.create_bottom_panel()
+        
     def create_menu(self):
         menubar = tk.Menu(self.root)
         
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="New")
-        file_menu.add_command(label="Open")
-        file_menu.add_command(label="Save")
-        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="جديد", command=self.new_file)
+        file_menu.add_command(label="فتح", command=self.open_file)
+        file_menu.add_command(label="حفظ", command=self.save_file)
+        file_menu.add_command(label="إنشاء ملف شاي", command=self.create_shai_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="خروج", command=self.root.quit)
+        menubar.add_cascade(label="ملف", menu=file_menu)
+        
+        # Run menu
+        run_menu = tk.Menu(menubar, tearoff=0)
+        run_menu.add_command(label="نفذ", command=self.run_code)
+        run_menu.add_command(label="تصحيح")
+        menubar.add_cascade(label="تشغيل", menu=run_menu)
         
         self.root.config(menu=menubar)
+        
+    def create_explorer(self):
+        # Explorer header
+        explorer_header = ttk.Label(self.sidebar, text="المستكشف", style="Header.TLabel")
+        explorer_header.pack(fill=tk.X, padx=5, pady=5)
+        
+        # File tree
+        self.file_tree = ttk.Treeview(self.sidebar)
+        self.file_tree.pack(fill=tk.BOTH, expand=True)
+        
+        # Add current directory files
+        self.refresh_explorer()
+        
+    def refresh_explorer(self):
+        self.file_tree.delete(*self.file_tree.get_children())
+        for item in os.listdir("."):
+            self.file_tree.insert("", "end", text=item)
         
     def create_widgets(self):
         # Code editor
@@ -67,26 +112,10 @@ class ShaiIDE:
         # Bind key events
         self.editor.bind("<KeyRelease>", self.on_key_release)
         
-        # Bottom panel
-        self.bottom_panel = ttk.Frame(self.root, height=200)
-        self.bottom_panel.pack(fill=tk.X)
-        
-        # Output display
-        self.output = scrolledtext.ScrolledText(
-            self.bottom_panel,
-            wrap=tk.WORD,
-            height=10,
-            font=("Consolas", 11),
-            bg="#1e1e1e",
-            fg="#d4d4d4",
-            state="normal"
-        )
-        self.output.pack(fill=tk.BOTH, expand=True)
-        
         # Status bar
         self.status = tk.Label(
-            self.root,
-            text="Ready",
+            self.editor_area,
+            text="جاهز",
             bd=1,
             relief=tk.SUNKEN,
             anchor=tk.W,
@@ -94,6 +123,66 @@ class ShaiIDE:
             fg="white"
         )
         self.status.pack(fill=tk.X)
+        
+    def create_bottom_panel(self):
+        # Bottom panel notebook
+        self.bottom_notebook = ttk.Notebook(self.root)
+        self.bottom_notebook.pack(fill=tk.BOTH, expand=False)
+        
+        # Output tab
+        self.output_frame = ttk.Frame(self.bottom_notebook)
+        self.bottom_notebook.add(self.output_frame, text="النتائج")
+        
+        self.output = scrolledtext.ScrolledText(
+            self.output_frame,
+            wrap=tk.WORD,
+            height=8,
+            font=("Consolas", 11),
+            bg="#1e1e1e",
+            fg="#d4d4d4",
+            state="normal"
+        )
+        self.output.pack(fill=tk.BOTH, expand=True)
+        
+        # REPL tab (Python IDLE style)
+        self.repl_frame = ttk.Frame(self.bottom_notebook)
+        self.bottom_notebook.add(self.repl_frame, text="طرفية")
+        
+        self.repl_output = scrolledtext.ScrolledText(
+            self.repl_frame,
+            wrap=tk.WORD,
+            height=4,
+            font=("Consolas", 11),
+            bg="#1e1e1e",
+            fg="#d4d4d4",
+            state="normal"
+        )
+        self.repl_output.pack(fill=tk.BOTH, expand=True)
+        
+        self.repl_input = tk.Entry(
+            self.repl_frame,
+            font=("Consolas", 11),
+            bg="#252526",
+            fg="#d4d4d4",
+            insertbackground="white"
+        )
+        self.repl_input.pack(fill=tk.X, pady=5)
+        self.repl_input.bind("<Return>", self.eval_repl)
+        
+        # Terminal tab
+        self.terminal_frame = ttk.Frame(self.bottom_notebook)
+        self.bottom_notebook.add(self.terminal_frame, text="محطة")
+        
+        self.terminal = scrolledtext.ScrolledText(
+            self.terminal_frame,
+            wrap=tk.WORD,
+            height=8,
+            font=("Consolas", 11),
+            bg="#1e1e1e",
+            fg="#d4d4d4",
+            state="normal"
+        )
+        self.terminal.pack(fill=tk.BOTH, expand=True)
         
     def setup_autocomplete(self):
         self.editor.bind("<Tab>", self.handle_autocomplete)
@@ -108,6 +197,93 @@ class ShaiIDE:
                 self.editor.insert(tk.INSERT, matches[0][len(word):])
                 return "break"
         return None
+        
+    def new_file(self):
+        new_tab = ttk.Frame(self.notebook)
+        editor = scrolledtext.ScrolledText(
+            new_tab,
+            wrap=tk.WORD,
+            font=("Consolas", 12),
+            bg="#1e1e1e",
+            fg="#d4d4d4"
+        )
+        editor.pack(fill=tk.BOTH, expand=True)
+        self.notebook.add(new_tab, text="Untitled.shai")
+        self.notebook.select(new_tab)
+        
+    def open_file(self):
+        filepath = filedialog.askopenfilename(filetypes=[("Shai files", "*.shai")])
+        if filepath:
+            with open(filepath, "r") as f:
+                content = f.read()
+            
+            new_tab = ttk.Frame(self.notebook)
+            editor = scrolledtext.ScrolledText(
+                new_tab,
+                wrap=tk.WORD,
+                font=("Consolas", 12),
+                bg="#1e1e1e",
+                fg="#d4d4d4"
+            )
+            editor.pack(fill=tk.BOTH, expand=True)
+            editor.insert("1.0", content)
+            
+            self.notebook.add(new_tab, text=os.path.basename(filepath))
+            self.notebook.select(new_tab)
+            
+    def create_shai_file(self):
+        """Create a new Shai file with web redirect template"""
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".shai",
+            filetypes=[("Shai files", "*.shai")]
+        )
+        if filepath:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write("""
+@نص صفحتي الأولى بشاي
+@مسار main.css
+
+@body
+  @ر1 مرحبًا بالعالم!
+  @فقرة هذه فقرة مكتوبة بلغة شاي الترميزية.
+  @قائمة
+    @عنصر عنصر 1
+    @عنصر عنصر 2
+  @زر انقر هنا @onclick="alert('مرحبًا!')"
+""")
+            
+            # Open the new file in editor
+            new_tab = ttk.Frame(self.notebook)
+            editor = scrolledtext.ScrolledText(
+                new_tab,
+                wrap=tk.WORD,
+                font=("Consolas", 12),
+                bg="#1e1e1e",
+                fg="#d4d4d4"
+            )
+            editor.pack(fill=tk.BOTH, expand=True)
+            editor.insert("1.0", open(filepath).read())
+            
+            self.notebook.add(new_tab, text=os.path.basename(filepath))
+            self.notebook.select(new_tab)
+            
+            # Refresh explorer
+            self.refresh_explorer()
+            
+    def save_file(self):
+        current_tab = self.notebook.select()
+        if current_tab:
+            editor = self.notebook.nametowidget(current_tab).winfo_children()[0]
+            content = editor.get("1.0", tk.END)
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".shai",
+                filetypes=[("Shai files", "*.shai")]
+            )
+            if filepath:
+                with open(filepath, "w") as f:
+                    f.write(content)
+                self.notebook.tab(current_tab, text=os.path.basename(filepath))
         
     def get_current_word(self):
         pos = self.editor.index(tk.INSERT)
@@ -157,18 +333,94 @@ class ShaiIDE:
                 
         # TODO: Add more syntax highlighting rules
         
+    def eval_repl(self, event):
+        code = self.repl_input.get()
+        self.repl_input.delete(0, tk.END)
+        
+        self.repl_output.insert(tk.END, f">>> {code}\n", "input")
+        
+        try:
+            # TODO: Execute shai-lang code here
+            result = f"Result: {code}"  # Placeholder
+            self.repl_output.insert(tk.END, f"{result}\n", "output")
+        except Exception as e:
+            self.repl_output.insert(tk.END, f"Error: {str(e)}\n", "error")
+            
+        self.repl_output.see(tk.END)
+        
     def run_code(self):
         code = self.editor.get("1.0", tk.END)
-        
-        # Clear output
         self.output.delete("1.0", tk.END)
         
-        # TODO: Execute shai-lang code here
-        # For now just display the code
-        self.output.insert(tk.END, "Executing shai-lang code...\n\n", "output")
-        self.output.insert(tk.END, code, "output")
+        import webbrowser
+        import tempfile
+        import os
+
+        # Create Shai runtime HTML wrapper with debug output
+        # Get absolute path to shay-runtime.js
+        runtime_path = os.path.abspath("shay-runtime.js")
         
-        self.status.config(text="Execution completed")
+        shai_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="file:///{runtime_path.replace(os.sep, '/')}"></script>
+  <style>
+    /* Default styles */
+    body {{
+      margin: 0;
+      padding: 20px;
+      font-family: Arial;
+      background: #1e1e1e;
+      color: white;
+    }}
+    shai-element {{
+      display: block;
+      border: 1px solid #569cd6;
+      padding: 10px;
+      margin: 10px 0;
+    }}
+  </style>
+</head>
+<body>
+  <script>
+    try {{
+      console.log('Initializing Shai Runtime...');
+      const runtime = new ShayRuntime();
+      
+      console.log('Executing Shai code...');
+      runtime.execute(`{code.replace('`', '\\`')}`);
+      
+      console.log('Code executed successfully!');
+      
+      console.log('Shai app mounted successfully!');
+    }} catch (e) {{
+      console.error('Shai Runtime Error:', e);
+      document.body.innerHTML = `
+        <div style="color: red; padding: 20px;">
+          <h2>Shai Runtime Error</h2>
+          <pre>${{e.stack}}</pre>
+        </div>
+      `;
+    }}
+  </script>
+</body>
+</html>"""
+        
+        # Save as temporary file
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
+            f.write(shai_content.encode('utf-8'))
+            temp_path = f.name
+            
+        # Open in browser
+        webbrowser.open(f'file:///{temp_path.replace(os.sep, "/")}')
+        
+        # Display status
+        self.status.config(text="تم تشغيل تطبيق شاي باستخدام المترجم")
+        self.output.insert(tk.END, "Running with Shai compiler...\n", "output")
+        
+        # Focus on terminal
+        self.bottom_notebook.select(self.terminal_frame)
 
 if __name__ == "__main__":
     root = tk.Tk()

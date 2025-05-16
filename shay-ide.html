@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بيئة تطوير شاي</title>
+  <script src="shay-runtime.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      direction: rtl;
+    }
+    #editor {
+      width: 100%;
+      height: 300px;
+      font-family: monospace;
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>بيئة تطوير لغة شاي</h1>
+  
+  <textarea id="editor" placeholder="اكتب كود شاي هنا..."></textarea>
+  <br>
+  <button onclick="runShay()" aria-label="نفذ الكود">نفذ الكود</button>
+  
+  <h2>النتيجة:</h2>
+  <div id="output"></div>
+
+  <script>
+    function runShay() {
+      const code = document.getElementById('editor').value;
+      document.getElementById('output').innerHTML = '';
+      
+      try {
+        const runtime = new ShayRuntime();
+        runtime.execute(code);
+      } catch (error) {
+        document.getElementById('output').innerHTML = 
+          `<span style="color:red">خطأ: ${error.message}</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
