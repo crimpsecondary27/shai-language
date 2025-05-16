@@ -262,7 +262,7 @@ class ShaiIDE:
                 fg="#d4d4d4"
             )
             editor.pack(fill=tk.BOTH, expand=True)
-            editor.insert("1.0", open(filepath).read())
+            editor.insert("1.0", open(filepath, encoding='utf-8').read())
             
             self.notebook.add(new_tab, text=os.path.basename(filepath))
             self.notebook.select(new_tab)
@@ -360,11 +360,131 @@ class ShaiIDE:
         # Get absolute path to shay-runtime.js
         runtime_path = os.path.abspath("shay-runtime.js")
         
-        shai_content = f"""<!DOCTYPE html>
+        # Arabic HTML tag translations
+        arabic_tags = {
+            'a': 'رابط',
+            'abbr': 'اختصار',
+            'address': 'عنوان',
+            'article': 'مقال',
+            'aside': 'جانبي',
+            'audio': 'صوت',
+            'b': 'عريض',
+            'blockquote': 'اقتباس',
+            'body': 'جسم',
+            'br': 'سطر-جديد',
+            'button': 'زر',
+            'canvas': 'لوحة',
+            'caption': 'شرح',
+            'cite': 'استشهاد',
+            'code': 'كود',
+            'col': 'عمود',
+            'colgroup': 'مجموعة-أعمدة',
+            'dd': 'وصف-مصطلح',
+            'del': 'محذوف',
+            'details': 'تفاصيل',
+            'dfn': 'تعريف',
+            'div': 'قسم',
+            'dl': 'قائمة-تعريفات',
+            'dt': 'مصطلح',
+            'em': 'تأكيد',
+            'embed': 'تضمين',
+            'fieldset': 'مجموعة-حقول',
+            'figcaption': 'شرح-شكل',
+            'figure': 'شكل',
+            'footer': 'تذييل',
+            'form': 'نموذج',
+            'h1': 'عنوان1',
+            'h2': 'عنوان2',
+            'h3': 'عنوان3',
+            'h4': 'عنوان4',
+            'h5': 'عنوان5',
+            'h6': 'عنوان6',
+            'head': 'رأس',
+            'header': 'رأس-صفحة',
+            'hr': 'فاصل',
+            'html': 'لغة-توصيف-النص-الفائق',
+            'i': 'مائل',
+            'iframe': 'إطار-مضمن',
+            'img': 'صورة',
+            'input': 'إدخال',
+            'ins': 'مضاف',
+            'kbd': 'لوحة-مفاتيح',
+            'label': 'تسمية',
+            'legend': 'شرح',
+            'li': 'عنصر-قائمة',
+            'link': 'رابط',
+            'main': 'رئيسي',
+            'map': 'خريطة',
+            'mark': 'تمييز',
+            'menu': 'قائمة',
+            'meta': 'بيانات',
+            'meter': 'عداد',
+            'nav': 'تنقل',
+            'noscript': 'بدون-سكربت',
+            'object': 'كائن',
+            'ol': 'قائمة-مرقمة',
+            'optgroup': 'مجموعة-خيارات',
+            'option': 'خيار',
+            'output': 'خرج',
+            'p': 'فقرة',
+            'param': 'معيار',
+            'picture': 'صورة',
+            'pre': 'مسبق-التنسيق',
+            'progress': 'تقدم',
+            'q': 'اقتباس-قصير',
+            'rp': 'دعم-روبي',
+            'rt': 'شرح-روبي',
+            'ruby': 'روبي',
+            's': 'مشطوب',
+            'samp': 'عينة',
+            'script': 'سكربت',
+            'section': 'قسم',
+            'select': 'اختيار',
+            'small': 'صغير',
+            'source': 'مصدر',
+            'span': 'امتداد',
+            'strong': 'قوي',
+            'style': 'تنسيق',
+            'sub': 'منخفض',
+            'summary': 'ملخص',
+            'sup': 'مرتفع',
+            'table': 'جدول',
+            'tbody': 'جسم-جدول',
+            'td': 'خلية-جدول',
+            'template': 'قالب',
+            'textarea': 'منطقة-نص',
+            'tfoot': 'تذييل-جدول',
+            'th': 'رأس-خلية',
+            'thead': 'رأس-جدول',
+            'time': 'وقت',
+            'title': 'عنوان',
+            'tr': 'صف-جدول',
+            'track': 'مسار',
+            'u': 'تحته-خط',
+            'ul': 'قائمة-غير-مرقمة',
+            'var': 'متغير',
+            'video': 'فيديو',
+            'wbr': 'فاصل-كلمة'
+        }
+
+        # Replace HTML tags with Arabic equivalents in the code
+        for eng, arb in arabic_tags.items():
+            code = code.replace(f'<{eng}', f'<{arb}').replace(f'</{eng}>', f'</{arb}>')
+        
+        escaped_code = code.replace('`', '\\`').replace('${', '\\${')
+        # Verify runtime file exists
+        if not os.path.exists(runtime_path):
+            self.output.insert(tk.END, f"Error: shay-runtime.js not found at {runtime_path}\n", "error")
+            return
+
+        shai_content = """<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <script src="file:///{runtime_path.replace(os.sep, '/')}"></script>
+  <script>
+    console.log('Loading shay-runtime.js from: {0}');
+  </script>
+  <script src="file:///{0}"></script>
   <style>
     /* Default styles */
     body {{
@@ -389,7 +509,7 @@ class ShaiIDE:
       const runtime = new ShayRuntime();
       
       console.log('Executing Shai code...');
-      runtime.execute(`{code.replace('`', '\\`')}`);
+      runtime.execute(`{1}`);
       
       console.log('Code executed successfully!');
       
@@ -405,7 +525,10 @@ class ShaiIDE:
     }}
   </script>
 </body>
-</html>"""
+</html>""".format(
+    runtime_path.replace(os.sep, '/'),
+    escaped_code
+)
         
         # Save as temporary file
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:

@@ -1,94 +1,102 @@
 class ShayRuntime {
   constructor() {
-    this.commands = {
-      '@title': this.handleTitle,
-      '@نص': this.handleTitle,
-      '@style': this.handleStyle,
-      '@مسار': this.handleStyle, 
-      '@body': this.handleBody,
-      '@h1': this.handleH1,
-      '@ر1': this.handleH1,
-      '@p': this.handleP,
-      '@فقرة': this.handleP,
-      '@ul': this.handleUl,
-      '@قائمة': this.handleUl,
-      '@li': this.handleLi,
-      '@عنصر': this.handleLi,
-      '@button': this.handleButton,
-      '@زر': this.handleButton
-    };
-    this.inBody = false;
+    console.log('Shai Runtime initialized');
   }
 
-  execute(shayContent) {
-    const lines = shayContent.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      const spaceIndex = trimmed.indexOf(' ');
-      const command = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
+  execute(code) {
+    try {
+      // Convert Shai code to HTML
+      let html = this.convertShaiToHtml(code);
       
-      if (this.commands[command]) {
-        const arg = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1) : '';
-        this.commands[command].call(this, arg);
+      // Render the HTML
+      document.body.innerHTML = html;
+    } catch (e) {
+      console.error('Execution error:', e);
+      document.body.innerHTML = `
+        <div style="color: red; padding: 20px;">
+          <h2>Shai Runtime Error</h2>
+          <pre>${e.stack}</pre>
+        </div>
+      `;
+    }
+  }
+
+  convertShaiToHtml(code) {
+    // Split into lines and process each one
+    let lines = code.split('\n');
+    let html = '';
+    let currentTag = null;
+    let currentAttrs = '';
+    
+    const arabicTags = {
+      '@نص': 'title',
+      '@جسم': 'body',
+      '@عنوان1': 'h1',
+      '@فقرة': 'p',
+      '@قائمة-غير-مرقمة': 'ul',
+      '@عنصر-قائمة': 'li',
+      '@جدول': 'table',
+      '@رأس-جدول': 'thead',
+      '@صف-جدول': 'tr',
+      '@رأس-خلية': 'th',
+      '@جسم-جدول': 'tbody',
+      '@خلية-جدول': 'td',
+      '@نموذج': 'form',
+      '@تسمية': 'label',
+      '@إدخال': 'input',
+      '@زر': 'button',
+      '@فيديو': 'video',
+      '@مصدر': 'source'
+    };
+
+    let cssPath = '';
+    
+    // First pass to find CSS path
+    for (let line of lines) {
+      line = line.trim();
+      if (line.startsWith('@مسار')) {
+        cssPath = line.split(' ')[1];
+        break;
       }
     }
-  }
 
-  handleTitle(text) {
-    document.title = text;
-  }
+    // Second pass to process other tags
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith('@مسار')) continue;
 
-  handleStyle(href) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    document.head.appendChild(link);
-  }
-
-  handleBody() {
-    this.inBody = true;
-  }
-
-  handleH1(text) {
-    if (!this.inBody) return;
-    const h1 = document.createElement('h1');
-    h1.textContent = text;
-    document.body.appendChild(h1);
-  }
-
-  handleP(text) {
-    if (!this.inBody) return;
-    const p = document.createElement('p');
-    p.textContent = text;
-    document.body.appendChild(p);
-  }
-
-  handleUl() {
-    if (!this.inBody) return;
-    this.currentUl = document.createElement('ul');
-    document.body.appendChild(this.currentUl);
-  }
-
-  handleLi(text) {
-    if (!this.inBody || !this.currentUl) return;
-    const li = document.createElement('li');
-    li.textContent = text;
-    this.currentUl.appendChild(li);
-  }
-
-  handleButton(args) {
-    if (!this.inBody) return;
-    const [text, onclick] = args.split(' @onclick="');
-    const button = document.createElement('button');
-    button.textContent = text;
-    if (onclick) {
-      button.onclick = new Function(onclick.replace('"', ''));
+      // Check for Shai tag
+      const tagMatch = line.match(/^(@\S+)/);
+      if (tagMatch) {
+        const shaiTag = tagMatch[1];
+        const content = line.slice(tagMatch[0].length).trim();
+        
+        if (arabicTags[shaiTag]) {
+          // Handle attributes
+          const attrMatch = content.match(/\[(.*?)\]/);
+          let tagContent = attrMatch ? content.slice(0, attrMatch.index).trim() : content;
+          let attrs = attrMatch ? attrMatch[1] : '';
+          
+          // Convert to HTML
+          html += `<${arabicTags[shaiTag]}${attrs ? ' ' + attrs : ''}>${tagContent}</${arabicTags[shaiTag]}>`;
+        }
+      }
     }
-    document.body.appendChild(button);
+
+    // Wrap in basic HTML structure if needed
+    if (!html.includes('<html>')) {
+      let cssLink = cssPath ? `<link rel="stylesheet" href="${cssPath}">` : '';
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shai App</title>
+  ${cssLink}
+</head>
+${html}
+</html>`;
+    }
+
+    return html;
   }
 }
-
-// To use:
-// const runtime = new ShayRuntime();
