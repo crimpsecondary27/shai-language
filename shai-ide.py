@@ -57,6 +57,7 @@ class ShaiIDE:
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="جديد", command=self.new_file)
         file_menu.add_command(label="فتح", command=self.open_file)
+        file_menu.add_command(label="فتح مجلد", command=self.open_folder)
         file_menu.add_command(label="حفظ", command=self.save_file)
         file_menu.add_command(label="إنشاء ملف شاي", command=self.create_shai_file)
         file_menu.add_separator()
@@ -80,13 +81,36 @@ class ShaiIDE:
         self.file_tree = ttk.Treeview(self.sidebar)
         self.file_tree.pack(fill=tk.BOTH, expand=True)
         
+        # Configure treeview columns
+        self.file_tree["columns"] = ("path")
+        self.file_tree.column("#0", width=300, minwidth=200)
+        self.file_tree.column("path", width=0, stretch=tk.NO)
+        
+        # Bind double click to open files/folders
+        self.file_tree.bind("<Double-1>", self.on_tree_double_click)
+        
         # Add current directory files
         self.refresh_explorer()
         
-    def refresh_explorer(self):
+    def refresh_explorer(self, folder="."):
         self.file_tree.delete(*self.file_tree.get_children())
-        for item in os.listdir("."):
-            self.file_tree.insert("", "end", text=item)
+        try:
+            for item in os.listdir(folder):
+                full_path = os.path.join(folder, item)
+                if os.path.isdir(full_path):
+                    node = self.file_tree.insert("", "end", text=f"📁 {item}", values=[full_path])
+                    # Add dummy child to make folder expandable
+                    self.file_tree.insert(node, "end", text="Loading...")
+                else:
+                    self.file_tree.insert("", "end", text=f"📄 {item}", values=[full_path])
+        except PermissionError:
+            self.file_tree.insert("", "end", text="⚠️ Access Denied")
+
+    def open_folder(self):
+        folder = filedialog.askdirectory()
+        if folder:
+            os.chdir(folder)
+            self.refresh_explorer(folder)
         
     def create_widgets(self):
         # Code editor
@@ -211,6 +235,53 @@ class ShaiIDE:
         self.notebook.add(new_tab, text="Untitled.shai")
         self.notebook.select(new_tab)
         
+    def on_tree_double_click(self, event):
+        item = self.file_tree.selection()[0]
+        path = self.file_tree.item(item, "values")[0]
+        
+        if os.path.isdir(path):
+            # Expand/collapse folder
+            if self.file_tree.item(item, "open"):
+                self.file_tree.item(item, open=False)
+                # Clear children
+                for child in self.file_tree.get_children(item):
+                    self.file_tree.delete(child)
+            else:
+                # Load folder contents
+                self.file_tree.item(item, open=True)
+                for child in self.file_tree.get_children(item):
+                    self.file_tree.delete(child)
+                
+                try:
+                    for item_name in os.listdir(path):
+                        full_path = os.path.join(path, item_name)
+                        if os.path.isdir(full_path):
+                            node = self.file_tree.insert(item, "end", text=f"📁 {item_name}", values=[full_path])
+                            # Add dummy child to make folder expandable
+                            self.file_tree.insert(node, "end", text="Loading...")
+                        else:
+                            self.file_tree.insert(item, "end", text=f"📄 {item_name}", values=[full_path])
+                except PermissionError:
+                    self.file_tree.insert(item, "end", text="⚠️ Access Denied")
+        else:
+            # Open file in editor
+            with open(path, "r") as f:
+                content = f.read()
+            
+            new_tab = ttk.Frame(self.notebook)
+            editor = scrolledtext.ScrolledText(
+                new_tab,
+                wrap=tk.WORD,
+                font=("Consolas", 12),
+                bg="#1e1e1e",
+                fg="#d4d4d4"
+            )
+            editor.pack(fill=tk.BOTH, expand=True)
+            editor.insert("1.0", content)
+            
+            self.notebook.add(new_tab, text=os.path.basename(path))
+            self.notebook.select(new_tab)
+
     def open_file(self):
         filepath = filedialog.askopenfilename(filetypes=[("Shai files", "*.shai")])
         if filepath:
