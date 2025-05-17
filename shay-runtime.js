@@ -54,8 +54,12 @@ class ShayRuntime {
     // First pass to find CSS path
     for (let line of lines) {
       line = line.trim();
-      if (line.startsWith('@مسار')) {
-        cssPath = line.split(' ')[1];
+      if (line.startsWith('@مسار ')) {
+        cssPath = line.substring(6).trim();
+        // Convert to absolute path if relative
+        if (!cssPath.startsWith('http') && !cssPath.startsWith('/')) {
+          cssPath = new URL(cssPath, window.location.href).href;
+        }
         break;
       }
     }
@@ -85,7 +89,30 @@ class ShayRuntime {
 
     // Wrap in basic HTML structure if needed
     if (!html.includes('<html>')) {
-      let cssLink = cssPath ? `<link rel="stylesheet" href="${cssPath}">` : '';
+      let cssLink = '';
+      if (cssPath) {
+        cssLink = `
+  <link rel="stylesheet" href="${cssPath}">
+  <script>
+    console.log('Loading CSS from: "${cssPath}");
+    document.addEventListener('DOMContentLoaded', function() {
+      var links = document.querySelectorAll('link[rel="stylesheet"]');
+      links.forEach(function(link) {
+        link.onerror = function() {
+          console.error('Failed to load CSS:', link.href);
+          var errorDiv = document.createElement('div');
+          errorDiv.style.color = 'red';
+          errorDiv.style.padding = '20px';
+          errorDiv.innerHTML = 
+            '<h3>Error loading CSS file</h3>' +
+            '<p>Could not load: ' + link.href + '</p>' +
+            '<p>Please check the file exists and the path is correct.</p>';
+          document.body.appendChild(errorDiv);
+        };
+      });
+    });
+  </script>`;
+      }
       html = `<!DOCTYPE html>
 <html>
 <head>
