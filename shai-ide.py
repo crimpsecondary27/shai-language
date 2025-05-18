@@ -428,8 +428,16 @@ class ShaiIDE:
         import os
 
         # Create Shai runtime HTML wrapper with debug output
-        # Get absolute path to shay-runtime.js
-        runtime_path = os.path.abspath("shay-runtime.js")
+        # Get absolute path to shay-runtime.js (look in both current dir and script dir)
+        runtime_path = None
+        possible_paths = [
+            os.path.abspath("shay-runtime.js"),
+            os.path.join(os.path.dirname(__file__), "shay-runtime.js")
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                runtime_path = path
+                break
         
         # Arabic HTML tag translations
         arabic_tags = {
@@ -544,9 +552,13 @@ class ShaiIDE:
         
         escaped_code = code.replace('`', '\\`').replace('${', '\\${')
         # Verify runtime file exists
-        if not os.path.exists(runtime_path):
-            self.output.insert(tk.END, f"Error: shay-runtime.js not found at {runtime_path}\n", "error")
-            return
+        if not runtime_path or not os.path.exists(runtime_path):
+            # Copy runtime file to temp dir if not found
+            import shutil
+            temp_dir = tempfile.mkdtemp()
+            runtime_path = os.path.join(temp_dir, "shay-runtime.js")
+            shutil.copy2(os.path.join(os.path.dirname(__file__), "shay-runtime.js"), runtime_path)
+            self.output.insert(tk.END, f"Copied runtime to temp location: {runtime_path}\n", "output")
 
         shai_content = """<!DOCTYPE html>
 <html>
