@@ -8,29 +8,72 @@
   <style>
     body { font-family: Arial; padding: 20px; }
     #shay-file { margin: 10px 0; padding: 5px; }
-    button { padding: 5px 10px; }
+    button { padding: 5px 10px; margin: 5px; }
+    #output { margin-block-start: 20px; border-block-start: 1px solid #ccc; padding-block-start: 20px; }
   </style>
 </head>
 <body>
   <h1>حمل لغة شاي</h1>
   <label for="shay-file">اختر ملف شاي:</label>
-  <input type="file" id="shay-file" accept=".shai" aria-label="اختر ملف شاي">
-  <button onclick="loadShay()" aria-label="نفذ ملف شاي المحدد">نفذ ملف شاي</button>
+  <input type="file" id="shay-file" accept=".shai,.shay">
+  <button onclick="loadShay()">نفذ ملف شاي</button>
+  <button onclick="clearOutput()">مسح الناتج</button>
+  
   <div id="output"></div>
 
   <script>
     function loadShay() {
       const fileInput = document.getElementById('shay-file');
       const file = fileInput.files[0];
-      if (!file) return;
+      if (!file) {
+        alert('الرجاء اختيار ملف شاي أولاً');
+        return;
+      }
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        document.getElementById('output').innerHTML = '';
-        const runtime = new ShayRuntime();
-        runtime.execute(e.target.result);
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = '<h3>جارٍ التنفيذ...</h3>';
+        
+        try {
+          const runtime = new ShayRuntime();
+          runtime.execute(e.target.result);
+          
+          setTimeout(() => {
+            outputDiv.innerHTML = `
+              <h3>✅ تم التنفيذ بنجاح</h3>
+              <p>تم تحميل ملف: <strong>${file.name}</strong></p>
+              <p>حجم الملف: ${file.size} بايت</p>
+              <hr>
+              <p>الصفحة المعروضة تحتوي على HTML الذي تم إنشاؤه من كود شاي.</p>
+              <button onclick="viewSource()">عرض مصدر HTML</button>
+            `;
+          }, 100);
+        } catch (error) {
+          outputDiv.innerHTML = `
+            <h3>❌ خطأ في التنفيذ</h3>
+            <pre style="color:red;background:#f8f8f8;padding:10px;">${error.message}</pre>
+          `;
+        }
       };
+      
+      reader.onerror = function() {
+        document.getElementById('output').innerHTML = '<h3 style="color:red">خطأ في قراءة الملف</h3>';
+      };
+      
       reader.readAsText(file);
+    }
+    
+    function clearOutput() {
+      document.getElementById('output').innerHTML = '';
+      document.getElementById('shay-file').value = '';
+    }
+    
+    function viewSource() {
+      const source = document.documentElement.outerHTML;
+      const newWindow = window.open();
+      newWindow.document.write('<pre>' + source.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>');
+      newWindow.document.close();
     }
   </script>
 </body>
