@@ -18,9 +18,8 @@
   <input type="file" id="shay-file" accept=".shai,.shay">
   <button onclick="loadShay()">نفذ ملف شاي</button>
   <button onclick="clearOutput()">مسح الناتج</button>
-  
-  <div id="output"></div>
 
+  <div id="output"></div>
   <script>
     function loadShay() {
       const fileInput = document.getElementById('shay-file');
@@ -29,19 +28,18 @@
         alert('الرجاء اختيار ملف شاي أولاً');
         return;
       }
-
       const reader = new FileReader();
       reader.onload = function(e) {
         const outputDiv = document.getElementById('output');
         outputDiv.innerHTML = '<h3>جارٍ التنفيذ...</h3>';
-        
+
         try {
           const runtime = new ShayRuntime();
           runtime.execute(e.target.result);
-          
+
           setTimeout(() => {
             outputDiv.innerHTML = `
-              <h3>✅ تم التنفيذ بنجاح</h3>
+              <h3>تم التنفيذ بنجاح</h3>
               <p>تم تحميل ملف: <strong>${file.name}</strong></p>
               <p>حجم الملف: ${file.size} بايت</p>
               <hr>
@@ -51,24 +49,24 @@
           }, 100);
         } catch (error) {
           outputDiv.innerHTML = `
-            <h3>❌ خطأ في التنفيذ</h3>
+            <h3>خطأ في التنفيذ</h3>
             <pre style="color:red;background:#f8f8f8;padding:10px;">${error.message}</pre>
           `;
         }
       };
-      
+
       reader.onerror = function() {
         document.getElementById('output').innerHTML = '<h3 style="color:red">خطأ في قراءة الملف</h3>';
       };
-      
+
       reader.readAsText(file);
     }
-    
+
     function clearOutput() {
       document.getElementById('output').innerHTML = '';
       document.getElementById('shay-file').value = '';
     }
-    
+
     function viewSource() {
       const source = document.documentElement.outerHTML;
       const newWindow = window.open();
